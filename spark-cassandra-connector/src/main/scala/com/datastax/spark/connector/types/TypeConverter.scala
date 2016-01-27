@@ -559,8 +559,8 @@ object TypeConverter {
     }
 
     def convertPF = {
-      case null => CassandraOption.Unset[T]
-      case other => CassandraOption(Some(c.convert(other)))
+      case null => CassandraOption.Unset
+      case other => CassandraOption.Value(c.convert(other))
     }
   }
 
@@ -768,9 +768,10 @@ object TypeConverter {
     def targetTypeTag = implicitly[TypeTag[AnyRef]]
 
     def cassandraOptionToAnyRef( cassandraOption: CassandraOption[_]) = {
-      cassandraOption.option match {
-        case Some(x) => nestedConverter.convert(x).asInstanceOf[AnyRef]
-        case None => if (cassandraOption.unsetIfNone == false) null else Unset
+      cassandraOption match {
+        case CassandraOption.Value(x) => nestedConverter.convert(x).asInstanceOf[AnyRef]
+        case CassandraOption.Unset => Unset
+        case CassandraOption.Null => null
       }
     }
 

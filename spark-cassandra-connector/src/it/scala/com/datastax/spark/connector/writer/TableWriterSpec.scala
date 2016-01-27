@@ -189,9 +189,9 @@ class TableWriterSpec extends SparkCassandraITFlatSpecBase {
     }
   }
 
-  it should "ignore CassandraOptions if unsetIfNone is true" in {
+  it should "ignore CassandraOptions set to UNSET" in {
     conn.withSessionDo{_.execute(s"""INSERT into $ks.unset_test (A, B, C) VALUES ('Original', 'Original', 'Original')""")}
-    sc.parallelize(Seq(("Original", CassandraOption(None, true), "New"))).saveToCassandra(ks, "unset_test")
+    sc.parallelize(Seq(("Original", CassandraOption.Unset, "New"))).saveToCassandra(ks, "unset_test")
     val result = sc.cassandraTable[(String, Option[String], Option[String])](ks, "unset_test").collect
     if (protocolVersion.toInt >= ProtocolVersion.V4.toInt) {
       result(0) should be(("Original", Some("Original"), Some("New")))
@@ -200,9 +200,9 @@ class TableWriterSpec extends SparkCassandraITFlatSpecBase {
     }
   }
 
-  it should "delete with Cassandra Options if unsetIfNone is false" in {
+  it should "delete with Cassandra Options set to Null" in {
     conn.withSessionDo{_.execute(s"""INSERT into $ks.unset_test (A, B, C) VALUES ('Original', 'Original', 'Original')""")}
-    sc.parallelize(Seq(("Original", CassandraOption(None, false), "New"))).saveToCassandra(ks, "unset_test")
+    sc.parallelize(Seq(("Original", CassandraOption.Null, "New"))).saveToCassandra(ks, "unset_test")
     val result = sc.cassandraTable[(String, Option[String], Option[String])](ks, "unset_test").collect
     result(0) should be(("Original", None, Some("New")))
   }

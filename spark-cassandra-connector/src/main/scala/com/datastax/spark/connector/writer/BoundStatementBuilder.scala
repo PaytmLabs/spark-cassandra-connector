@@ -42,7 +42,7 @@ private[connector] class BoundStatementBuilder[T](
       //C* 2.2 (PV4) and Greater Allows us to leave fields Unset
       if (protocolVersion.toInt < ProtocolVersion.V4.toInt || columnValue != Unset) {
         if (columnValue == Unset){
-          logWarning(s"""Unset Value set to Null because Current $protocolVersion <
+          logWarning(s"""Unset Some set to Null because Current $protocolVersion <
             ${ProtocolVersion.V4}, and does not support Unset values""")
           boundStatement.setToNull(columnName)
         } else {
