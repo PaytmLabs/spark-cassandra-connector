@@ -336,6 +336,11 @@ class CassandraRDDSpec extends SparkCassandraITFlatSpecBase {
     result.filter(_._1 == 2)(0)._2 should be (CassandraOption.Unset)
   }
 
+  it should "allow for reading Cassandra Options from values" in {
+    val result = sc.cassandraTable[(Int, CassandraOption[Array[Byte]])](ks, "blobs").collect
+    result.filter(_._1 == 1)(0)._2.get shouldEqual Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+  }
+
   it should "allow for converting fields to custom types by user-defined TypeConverter" in {
     TypeConverter.registerConverter(new TypeConverter[CustomerId] {
       def targetTypeTag = typeTag[CustomerId]

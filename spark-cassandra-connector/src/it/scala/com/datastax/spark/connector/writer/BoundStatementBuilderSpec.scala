@@ -23,17 +23,22 @@ class BoundStatementBuilderSpec extends SparkCassandraITFlatSpecBase {
   val ps = conn.withSessionDo( session =>
     session.prepare(s"""INSERT INTO "$ks".tab (id, value) VALUES (?, ?) """))
 
-  val protocolVersion = conn.withClusterDo(cluster => cluster.getConfiguration.getProtocolOptions.getProtocolVersion)
+  "BoundStatementBuilder" should "ignore Unset values if ProtocolVersion >= 4" in {
+    val testProtocols = (ProtocolVersion.V4.toInt to ProtocolVersion.NEWEST_SUPPORTED.toInt)
+      .map(ProtocolVersion.fromInt(_))
 
-  "BoundStatementBuilder" should "ignore Unset values if ProtocolVersion > 3" in {
-    val bsb = new BoundStatementBuilder(rowWriter, ps, protocolVersion = ProtocolVersion.V4)
-    val x = bsb.bind((1, CassandraOption.Unset))
-    x.isSet("value") should be (false)
+    for (testProtocol <- testProtocols) {
+      val bsb = new BoundStatementBuilder(rowWriter, ps, protocolVersion = testProtocol)
+      val x = bsb.bind((1, CassandraOption.Unset))
+      withClue(s"$testProtocol should ignore unset values :")(x.isSet("value") should be(false))
+    }
   }
 
   it should "set Unset values to null if ProtocolVersion <= 3" in {
-    val bsb = new BoundStatementBuilder(rowWriter, ps, protocolVersion = ProtocolVersion.V3)
-    val x = bsb.bind((1, CassandraOption.Unset))
-    x.isNull("value") should be (true)
+    for (testProtocol <- Seq(ProtocolVersion.V1, ProtocolVersion.V2, ProtocolVersion.V3)) {
+      val bsb = new BoundStatementBuilder(rowWriter, ps, protocolVersion = testProtocol)
+      val x = bsb.bind((1, CassandraOption.Unset))
+      withClue(s"$testProtocol should set to null :")(x.isNull("value") should be(true))
+    }
   }
 }
