@@ -21,6 +21,28 @@ private[connector] class BoundStatementBuilder[T](
   private val converters = columnTypes.map(ColumnType.converterToCassandra(_))
   private val buffer = Array.ofDim[Any](columnNames.size)
 
+  var logUnsetToNullWarning = false
+  val UnsetToNullWarning =
+    s"""Unset values can only be used with C* >= 2.2. They have been replaced
+      |with nulls. Found protocol version ${protocolVersion}.
+      |${ProtocolVersion.V4} or greater required"
+    """.stripMargin
+
+  /**
+  * If the protocol version is greater than V3 (C* 2.2 and Greater) then
+  * we can leave values in the prepared statement unset. If the version is
+  * less than V3 then we need to place a `null` in the bound statement.
+  */
+  private def maybeLeaveUnset(
+    boundStatement: BoundStatement,
+    columnName: String): Unit = protocolVersion match {
+      case pv if pv.toInt <= ProtocolVersion.V3.toInt => {
+        boundStatement.setToNull(columnName)
+        logUnsetToNullWarning = true
+      }
+      case _ =>
+  }
+
   private val prefixConverted = for {
     prefixIndex: Int <- 0 until prefixVals.length
     prefixVal = prefixVals(prefixIndex)
@@ -39,19 +61,14 @@ private[connector] class BoundStatementBuilder[T](
       val converter = converters(i)
       val columnName = columnNames(i)
       val columnValue = converter.convert(buffer(i))
-      //C* 2.2 (PV4) and Greater Allows us to leave fields Unset
-      if (protocolVersion.toInt < ProtocolVersion.V4.toInt || columnValue != Unset) {
-        if (columnValue == Unset){
-          logWarning(s"""Unset Some set to Null because Current $protocolVersion <
-            ${ProtocolVersion.V4}, and does not support Unset values""")
-          boundStatement.setToNull(columnName)
-        } else {
-          boundStatement.set(columnName, columnValue, CodecRegistryUtil.codecFor(columnTypes(i), columnValue))
-        }
-        val serializedValue = boundStatement.getBytesUnsafe(i)
-        if (serializedValue != null) bytesCount += serializedValue.remaining()
+      if (columnValue == Unset) {
+        maybeLeaveUnset(boundStatement, columnName)
+      } else {
+        val codec = CodecRegistryUtil.codecFor(columnTypes(i), columnValue)
+        boundStatement.set(columnName, columnValue, codec)
       }
-
+      val serializedValue = boundStatement.getBytesUnsafe(i)
+      if (serializedValue != null) bytesCount += serializedValue.remaining()
     }
     boundStatement.bytesCount = bytesCount
     boundStatement

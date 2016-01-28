@@ -166,6 +166,7 @@ class TableWriter[T] private (
 
       val duration = updater.finish() / 1000000000d
       logInfo(f"Wrote ${rowIterator.count} rows to $keyspaceName.$tableName in $duration%.3f s.")
+      if (boundStmtBuilder.logUnsetToNullWarning){ logWarning(boundStmtBuilder.UnsetToNullWarning) }
     }
   }
 }
