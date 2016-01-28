@@ -196,42 +196,98 @@ to insert `nulls` into cassandra for any unfilled columns.
 
 The Spark Cassandra Connector now provides a method for avoiding creating a tombstone when 
 inserting from an empty column to Cassandra. This is done by with the 
-`com.datastax.spark.connector.types.CassandraOption` class. 
+`com.datastax.spark.connector.types.CassandraOption` trait. 
 
-    CassandraOption[A](option: Option[A], unsetIfNone: Boolean = true)
+The trait has three implementations
+
+    sealed trait CassandraOption[+A] extends Product with Serializable
+      
+      object CassandraOption {
+        case class Value[+A](value: A) extends CassandraOption[A]
+        case object Unset extends CassandraOption[Nothing]
+        case object Null extends CassandraOption[Nothing]
 
 This can be used when reading and writing from C*. When a column is loaded as a `CassandraOption` 
 any missing columns will be represented as `Unset` options. This means a table loaded via 
 `CassandraOption` will not delete elements if saved to another table if there were missing 
 elements in the table read from.
- 
-    //Tab1 
-    //(1, None, 1)
-     
-    //Tab2
-    //(1, 5, None)
+
+Example: copying a table without deletes
+
+    //cqlsh
+    CREATE TABLE doc_example.tab1 (key INT, col_1 INT, col_2 INT, PRIMARY KEY (key))
+    INSERT INTO doc_example.tab1 (key, col_1, col_2) VALUES (1, null, 1)
+    CREATE TABLE doc_example.tab2 (key INT, col_1 INT, col_2 INT, PRIMARY KEY (key))
+    INSERT INTO doc_example.tab2 (key, col_1, col_2) VALUES (1, 5, null)
     
-    sc.cassandraTable[(String, CassandraOption[String])]("ks", "tab1")
-      .saveToCassandra("ks", "tab2")
-     
-    //Tab2
+    //spark-shell
+    val ks = "doc_example"
+    //Copy the data from tab1 to tab2 but don't delete when we see a null in tab1
+    sc.cassandraTable[(Int, CassandraOption[Int], CassandraOption[Int])](ks, "tab1")
+      .saveToCassandra(ks, "tab2")
+      
+    sc.cassandraTable[(Int,Int,Int)](ks, "tab2").collect
     //(1, 5, 1)
-    
  
 For more complicated use cases the `CassandraOption` can be set to delete as well on a per row 
-(and per column) basis. This is done by adjusting the second parameter `unsetIfNone`
+(and per column) basis. This is done by using either the Unset or Null classes.
 
-    //Tab1
-    //(1, 1, 1)
-    
-    sc.parallelize(Seq(
-      (1,
-      CassandraOption(None, unsetIfNone = false), //This None will be treated as a Delete (null)
-      CassandraOption(None, unsetIfNone = true))  //This None will be treated as Unset
-      .saveToCassandra("ks", "tab1")
-      
-    //Tab1
-    //(1, None, 1)
+    //Fill tab1 with (1, 1, 1) , (2, 2, 2) ... (6, 6, 6)
+    sc.parallelize(1 to 6).map(x => (x, x, x)).saveToCassandra(ks, "tab1")
+    //Delete the second column when x >= 5
+    //Delete the third column when x <= 2
+    //For other rows put in the value -1
+    sc.parallelize(1 to 6).map(x => x match {
+      case x if (x >= 5) => (x, CassandraOption.Null, CassandraOption.Unset)
+      case x if (x <= 2) => (x, CassandraOption.Unset, CassandraOption.Null)
+      case x => (x, CassandraOption(-1), CassandraOption(-1))
+    }).saveToCassandra(ks, "tab1")
+
+    val results = sc.cassandraTable[(Int, Option[Int], Option[Int])](ks, "tab1").collect
+    results 
+    /**
+      (1, Some(1), None),
+      (2, Some(2), None),
+      (3, Some(-1), Some(-1)),
+      (4, Some(-1), Some(-1)),
+      (5, None, Some(5)),
+      (6, None, Some(6)))
+     **/
+  }
+  
+There exists an implicit to convert CassandraOptions to scala Options. So CassandraOptions can be
+dealt with as if they were normal Scala Options. To convert a Scala Option into into a CassandraOption
+you need to define the None behavior. This is done via `CassandraOption.deleteIfNone` and 
+ `CassandraOption.unsetIfNone`
+ 
+Example of converting Scala Options to Cassandra Options
+ 
+    import com.datastax.spark.connector.types.CassandraOption
+     //Setup original data (1, 1, 1) ... (6, 6, 6)
+     sc.parallelize(1 to 6).map(x => (x,x,x)).saveToCassandra(ks, "tab1")
+ 
+     //Setup options Rdd (1, None, None) (2, None, None) ... (6, None, None)
+     val optRdd = sc.parallelize(1 to 6)
+       .map(x => (x, None, None))
+       
+     //Delete the second column, but ignore the third column
+     optRdd
+       .map{ case (x: Int, y: Option[Int], z: Option[Int]) =>
+         (x, CassandraOption.deleteIfNone(y), CassandraOption.unsetIfNone(z))
+       }.saveToCassandra(ks, "tab1")
+ 
+     val results = sc.cassandraTable[(Int, Option[Int], Option[Int])](ks, "tab1").collect
+     results
+     /*
+       (1, None, Some(1)),
+       (2, None, Some(2)),
+       (3, None, Some(3)),
+       (4, None, Some(4)),
+       (5, None, Some(5)),
+       (6, None, Some(6))
+     */
+ 
+ 
     
 ## Specifying TTL and WRITETIME
 Spark Cassandra Connector saves the data without explicitly specifying TTL or WRITETIME. If a certain 
