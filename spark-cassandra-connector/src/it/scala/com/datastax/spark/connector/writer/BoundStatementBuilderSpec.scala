@@ -41,4 +41,32 @@ class BoundStatementBuilderSpec extends SparkCassandraITFlatSpecBase {
       withClue(s"$testProtocol should set to null :")(x.isNull("value") should be(true))
     }
   }
+
+  it should "ignore null values if ignoreNulls is set and protocol version >= 4" in {
+     val testProtocols = (ProtocolVersion.V4.toInt to ProtocolVersion.NEWEST_SUPPORTED.toInt)
+      .map(ProtocolVersion.fromInt(_))
+
+    for (testProtocol <- testProtocols) {
+      val bsb = new BoundStatementBuilder(
+        rowWriter,
+        ps,
+        protocolVersion = testProtocol,
+        ignoreNulls = true)
+
+      val x = bsb.bind((1, null))
+      withClue(s"$testProtocol should ignore unset values :")(x.isSet("value") should be(false))
+    }
+  }
+
+  it should "throw an exception if ignoreNulls is set and protocol version <= 3" in {
+    for (testProtocol <- Seq(ProtocolVersion.V1, ProtocolVersion.V2, ProtocolVersion.V3)) {
+      intercept[IllegalArgumentException] {
+        val bsb = new BoundStatementBuilder(
+          rowWriter,
+          ps,
+          protocolVersion = testProtocol,
+          ignoreNulls = true)
+      }
+    }
+  }
 }

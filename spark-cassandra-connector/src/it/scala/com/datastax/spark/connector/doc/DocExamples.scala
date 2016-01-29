@@ -4,6 +4,7 @@ import com.datastax.spark.connector.SparkCassandraITFlatSpecBase
 import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector.types.CassandraOption
 import com.datastax.spark.connector._
+import com.datastax.spark.connector.writer.WriteConf
 
 import scala.concurrent.Future
 
@@ -74,6 +75,29 @@ class DocExamples extends SparkCassandraITFlatSpecBase {
       (4, None, Some(4)),
       (5, None, Some(5)),
       (6, None, Some(6))
+    )
+
+  }
+
+  "Doc example #1 for spark.cassandra.output.ignorenulls" should "show using a write conf to ignore nulls" in {
+    //Setup original data (1, 1, 1) --> (6, 6, 6)
+    sc.parallelize(1 to 6).map(x => (x,x,x)).saveToCassandra(ks, "tab1")
+
+    val ignoreNullsWriteConf = WriteConf.fromSparkConf(sc.getConf).copy(ignoreNulls = true)
+    //These writes will do not delete because we are ignoring nulls
+    val optRdd = sc.parallelize(1 to 6)
+      .map(x => (x, None, None))
+      .saveToCassandra(ks, "tab1", writeConf = ignoreNullsWriteConf)
+
+    val results = sc.cassandraTable[(Int, Int, Int)](ks, "tab1").collect
+
+    results should contain theSameElementsAs Seq(
+      (1, 1, 1),
+      (2, 2, 2),
+      (3, 3, 3),
+      (4, 4, 4),
+      (5, 5, 5),
+      (6, 6, 6)
     )
 
   }

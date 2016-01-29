@@ -14,12 +14,19 @@ private[connector] class BoundStatementBuilder[T](
     val rowWriter: RowWriter[T],
     val preparedStmt: PreparedStatement,
     val prefixVals: Seq[Any] = Seq.empty,
+    val ignoreNulls: Boolean = false,
     val protocolVersion: ProtocolVersion) extends Logging {
 
   private val columnNames = rowWriter.columnNames.toIndexedSeq
   private val columnTypes = columnNames.map(preparedStmt.getVariables.getType)
   private val converters = columnTypes.map(ColumnType.converterToCassandra(_))
   private val buffer = Array.ofDim[Any](columnNames.size)
+
+  require( ignoreNulls == false || protocolVersion.toInt >= ProtocolVersion.V4.toInt,
+    s"""
+      |Protocol Version $protocolVersion does not support ignoring null values and leaving
+      |parameters unset. This is only supported in ${ProtocolVersion.V4} and greater.
+    """.stripMargin)
 
   var logUnsetToNullWarning = false
   val UnsetToNullWarning =
@@ -61,7 +68,7 @@ private[connector] class BoundStatementBuilder[T](
       val converter = converters(i)
       val columnName = columnNames(i)
       val columnValue = converter.convert(buffer(i))
-      if (columnValue == Unset) {
+      if (columnValue == Unset || (ignoreNulls && columnValue == null)) {
         maybeLeaveUnset(boundStatement, columnName)
       } else {
         val codec = CodecRegistryUtil.codecFor(columnTypes(i), columnValue)

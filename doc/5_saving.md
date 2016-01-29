@@ -286,6 +286,14 @@ Example of converting Scala Options to Cassandra Options
        (5, None, Some(5)),
        (6, None, Some(6))
      */
+     
+### Leaving all nulls as Unset
+WriteConf also now contains a parameter ignoreNulls which can be set via 
+`spark.cassandra.output.ignorenulls`. The default is `false` which will cause `null`s to be treated 
+as in previous versions. When set to `true` all `null`s will be treated as `unset`. This can
+be used with DataFrames to skip null records and avoid tombstones.
+
+
  
  
     

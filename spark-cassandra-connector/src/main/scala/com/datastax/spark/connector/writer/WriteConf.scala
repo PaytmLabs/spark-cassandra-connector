@@ -26,6 +26,7 @@ case class WriteConf(batchSize: BatchSize = BatchSize.Automatic,
                      batchGroupingBufferSize: Int = WriteConf.BatchBufferSizeParam.default,
                      batchGroupingKey: BatchGroupingKey = WriteConf.BatchLevelParam.default,
                      consistencyLevel: ConsistencyLevel = WriteConf.ConsistencyLevelParam.default,
+                     ignoreNulls: Boolean = WriteConf.IgnoreNullsParam.default,
                      parallelismLevel: Int = WriteConf.ParallelismLevelParam.default,
                      throughputMiBPS: Double = WriteConf.ThroughputMiBPSParam.default,
                      ttl: TTLOption = TTLOption.defaultValue,
@@ -97,6 +98,16 @@ object WriteConf {
     |</ul>
     |""".stripMargin)
 
+  val IgnoreNullsParam = ConfigParameter[Boolean](
+    name = "spark.cassandra.output.ignorenulls",
+    section = ReferenceSection,
+    default = false,
+    description =
+      """ In Cassandra >= 2.2 null values can be left as unset in bound statements. Setting
+        |this to true will cause all null values to be left as `unset` rather than bound. For
+        |finer control see
+        |the `CassandraOption` class""".stripMargin)
+
   val ParallelismLevelParam = ConfigParameter[Int] (
     name = "spark.cassandra.output.concurrent.writes",
     section = ReferenceSection,
@@ -127,6 +138,7 @@ object WriteConf {
     BatchSizeRowsParam,
     BatchBufferSizeParam,
     BatchLevelParam,
+    IgnoreNullsParam,
     ParallelismLevelParam,
     ThroughputMiBPSParam,
     TaskMetricsParam
@@ -142,6 +154,8 @@ object WriteConf {
       conf.get(ConsistencyLevelParam.name, ConsistencyLevelParam.default.name()))
 
     val batchSizeInRowsStr = conf.get(BatchSizeRowsParam.name, "auto")
+
+    val ignoreNulls = conf.getBoolean(IgnoreNullsParam.name, IgnoreNullsParam.default)
 
     val batchSize = {
       val Number = "([0-9]+)".r
@@ -173,7 +187,8 @@ object WriteConf {
       consistencyLevel = consistencyLevel,
       parallelismLevel = parallelismLevel,
       throughputMiBPS = throughputMiBPS,
-      taskMetricsEnabled = metricsEnabled)
+      taskMetricsEnabled = metricsEnabled,
+      ignoreNulls = ignoreNulls)
   }
 
 }
