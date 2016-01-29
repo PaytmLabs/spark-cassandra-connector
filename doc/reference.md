@@ -237,8 +237,8 @@ in each row</td>
   <td><code>output.ignorenulls</code></td>
   <td>false</td>
   <td> In Cassandra >= 2.2 null values can be left as unset in bound statements. Setting
-this to true will cause all null values to be left as `unset` rather than bound. For finer control see
-the `CassandraOption` class</td>
+this to true will cause all null values to be left as unset rather than bound. For
+finer control see the CassandraOption class</td>
 </tr>
 <tr>
   <td><code>output.metrics</code></td>

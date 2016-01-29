@@ -104,9 +104,8 @@ object WriteConf {
     default = false,
     description =
       """ In Cassandra >= 2.2 null values can be left as unset in bound statements. Setting
-        |this to true will cause all null values to be left as `unset` rather than bound. For
-        |finer control see
-        |the `CassandraOption` class""".stripMargin)
+        |this to true will cause all null values to be left as unset rather than bound. For
+        |finer control see the CassandraOption class""".stripMargin)
 
   val ParallelismLevelParam = ConfigParameter[Int] (
     name = "spark.cassandra.output.concurrent.writes",
