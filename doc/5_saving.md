@@ -293,6 +293,27 @@ WriteConf also now contains a parameter ignoreNulls which can be set via
 as in previous versions. When set to `true` all `null`s will be treated as `unset`. This can
 be used with DataFrames to skip null records and avoid tombstones.
 
+    //Setup original data (1, 1, 1) --> (6, 6, 6)
+    sc.parallelize(1 to 6).map(x => (x, x, x)).saveToCassandra(ks, "tab1")
+
+    val ignoreNullsWriteConf = WriteConf.fromSparkConf(sc.getConf).copy(ignoreNulls = true)
+    //These writes will do not delete because we are ignoring nulls
+    val optRdd = sc.parallelize(1 to 6)
+      .map(x => (x, None, None))
+      .saveToCassandra(ks, "tab1", writeConf = ignoreNullsWriteConf)
+
+    val results = sc.cassandraTable[(Int, Int, Int)](ks, "tab1").collect
+
+    results
+    /**
+      (1, 1, 1),
+      (2, 2, 2),
+      (3, 3, 3),
+      (4, 4, 4),
+      (5, 5, 5),
+      (6, 6, 6)
+    **/
+
 
  
  

@@ -14,12 +14,13 @@ protected[connector] object Unset extends Serializable
 sealed trait CassandraOption[+A] extends Product with Serializable
 
 object CassandraOption {
+
   case class Value[+A](value: A) extends CassandraOption[A]
   case object Unset extends CassandraOption[Nothing]
   case object Null extends CassandraOption[Nothing]
 
   def apply[A](x: A): CassandraOption[A] = x match {
-    case x:AnyRef if (x == null) => CassandraOption.Null
+    case x: AnyRef if (x == null) => CassandraOption.Null
     case Unset => CassandraOption.Unset
     case x => CassandraOption.Value[A](x)
   }

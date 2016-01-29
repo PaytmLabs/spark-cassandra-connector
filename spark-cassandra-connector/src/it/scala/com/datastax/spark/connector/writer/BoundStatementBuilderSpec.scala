@@ -12,7 +12,7 @@ class BoundStatementBuilderSpec extends SparkCassandraITFlatSpecBase {
 
   conn.withSessionDo { session =>
     createKeyspace(session, ks)
-    session.execute(s"""CREATE TABLE IF NOT EXISTS "$ks".tab (id INT PRIMARY KEY, value TEXT)""")
+    session.execute( s"""CREATE TABLE IF NOT EXISTS "$ks".tab (id INT PRIMARY KEY, value TEXT)""")
   }
   val cluster = conn.withClusterDo(c => c)
 
@@ -20,8 +20,8 @@ class BoundStatementBuilderSpec extends SparkCassandraITFlatSpecBase {
   val rowWriter = RowWriterFactory.defaultRowWriterFactory[(Int, CassandraOption[String])]
     .rowWriter(schema.tables.head, IndexedSeq("id", "value"))
   val rkg = new RoutingKeyGenerator(schema.tables.head, Seq("id", "value"))
-  val ps = conn.withSessionDo( session =>
-    session.prepare(s"""INSERT INTO "$ks".tab (id, value) VALUES (?, ?) """))
+  val ps = conn.withSessionDo(session =>
+    session.prepare( s"""INSERT INTO "$ks".tab (id, value) VALUES (?, ?) """))
 
   "BoundStatementBuilder" should "ignore Unset values if ProtocolVersion >= 4" in {
     val testProtocols = (ProtocolVersion.V4.toInt to ProtocolVersion.NEWEST_SUPPORTED.toInt)
@@ -43,7 +43,7 @@ class BoundStatementBuilderSpec extends SparkCassandraITFlatSpecBase {
   }
 
   it should "ignore null values if ignoreNulls is set and protocol version >= 4" in {
-     val testProtocols = (ProtocolVersion.V4.toInt to ProtocolVersion.NEWEST_SUPPORTED.toInt)
+    val testProtocols = (ProtocolVersion.V4.toInt to ProtocolVersion.NEWEST_SUPPORTED.toInt)
       .map(ProtocolVersion.fromInt(_))
 
     for (testProtocol <- testProtocols) {

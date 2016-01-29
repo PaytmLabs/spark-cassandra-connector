@@ -550,10 +550,11 @@ object TypeConverter {
     }
   }
 
-  class CassandraOptionConverter[T](implicit c: TypeConverter[T]) extends TypeConverter[CassandraOption[T]] {
+  class CassandraOptionConverter[T](implicit c: TypeConverter[T]) extends
+    TypeConverter[CassandraOption[T]] {
 
     @transient
-    lazy val targetTypeTag = TypeTag.synchronized{
+    lazy val targetTypeTag = TypeTag.synchronized {
       implicit val itemTypeTag = c.targetTypeTag
       implicitly[TypeTag[CassandraOption[T]]]
     }
@@ -698,7 +699,7 @@ object TypeConverter {
     }
   }
 
-  implicit def cassandraOptionConverter[T : TypeConverter]: CassandraOptionConverter[T] =
+  implicit def cassandraOptionConverter[T: TypeConverter]: CassandraOptionConverter[T] =
     new CassandraOptionConverter[T]
 
   implicit def optionConverter[T : TypeConverter]: OptionConverter[T] =
@@ -767,7 +768,7 @@ object TypeConverter {
 
     def targetTypeTag = implicitly[TypeTag[AnyRef]]
 
-    def cassandraOptionToAnyRef( cassandraOption: CassandraOption[_]) = {
+    def cassandraOptionToAnyRef(cassandraOption: CassandraOption[_]) = {
       cassandraOption match {
         case CassandraOption.Value(x) => nestedConverter.convert(x).asInstanceOf[AnyRef]
         case CassandraOption.Unset => Unset

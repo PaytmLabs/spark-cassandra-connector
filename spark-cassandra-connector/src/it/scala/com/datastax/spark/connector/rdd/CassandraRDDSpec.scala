@@ -333,7 +333,7 @@ class CassandraRDDSpec extends SparkCassandraITFlatSpecBase {
 
   it should "allow for reading Cassandra Options from nulls" in {
     val result = sc.cassandraTable[(Int, CassandraOption[Array[Byte]])](ks, "blobs").collect
-    result.filter(_._1 == 2)(0)._2 should be (CassandraOption.Unset)
+    result.filter(_._1 == 2)(0)._2 should be(CassandraOption.Unset)
   }
 
   it should "allow for reading Cassandra Options from values" in {

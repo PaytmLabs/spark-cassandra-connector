@@ -21,21 +21,32 @@ class DocExamples extends SparkCassandraITFlatSpecBase {
 
     awaitAll(
       Future {
-        session.execute( s"""CREATE TABLE doc_example.tab1 (key INT, col_1 INT, col_2 INT, PRIMARY KEY (key))""")
-        session.execute( s"""INSERT INTO doc_example.tab1 (key, col_1, col_2) VALUES (1, null, 1)""")
+        session.execute(
+          s"""CREATE TABLE doc_example.tab1 (key INT, col_1 INT, col_2 INT,
+             |PRIMARY KEY (key))""".stripMargin)
+        session.execute(
+          s"""INSERT INTO doc_example.tab1 (key, col_1, col_2) VALUES (1, null, 1)
+             |
+           """.stripMargin)
       },
       Future {
-        session.execute( s"""CREATE TABLE doc_example.tab2 (key INT, col_1 INT, col_2 INT, PRIMARY KEY (key))""")
-        session.execute( s"""INSERT INTO doc_example.tab2 (key, col_1, col_2) VALUES (1, 5, null)""")
+        session.execute(
+          s"""CREATE TABLE doc_example.tab2 (key INT, col_1 INT, col_2 INT,
+             |PRIMARY KEY (key))""".stripMargin)
+        session.execute(
+          s"""INSERT INTO doc_example.tab2 (key, col_1, col_2) VALUES (1, 5, null)
+             |
+           """.stripMargin)
       })
   }
 
-  "Doc Example #1 for CassandraOptions" should "demonstrate copying a table without deletes" in {
-    sc.cassandraTable[(Int, CassandraOption[Int], CassandraOption[Int])](ks, "tab1").saveToCassandra(ks, "tab2")
-    sc.cassandraTable[(Int,Int,Int)](ks, "tab2").collect should contain ((1,5,1))
+  "Docs" should "demonstrate copying a table without deletes" in {
+    sc.cassandraTable[(Int, CassandraOption[Int], CassandraOption[Int])](ks, "tab1")
+      .saveToCassandra(ks, "tab2")
+    sc.cassandraTable[(Int, Int, Int)](ks, "tab2").collect should contain((1, 5, 1))
   }
 
-  "Doc Example #2 for CassandraOptions" should "demonstrate only deleting some records" in {
+  it should "demonstrate only deleting some records" in {
     sc.parallelize(1 to 6).map(x => (x, x, x)).saveToCassandra(ks, "tab1")
     sc.parallelize(1 to 6).map(x => x match {
       case x if (x >= 5) => (x, CassandraOption.Null, CassandraOption.Unset)
@@ -54,15 +65,15 @@ class DocExamples extends SparkCassandraITFlatSpecBase {
       (6, None, Some(6)))
   }
 
-  "Doc Example #3 for CassandraOptions" should "demonstrate converting Options to CassandraOptions" in {
+  it should "demonstrate converting Options to CassandraOptions" in {
     import com.datastax.spark.connector.types.CassandraOption
     //Setup original data (1, 1, 1) --> (6, 6, 6)
-    sc.parallelize(1 to 6).map(x => (x,x,x)).saveToCassandra(ks, "tab1")
+    sc.parallelize(1 to 6).map(x => (x, x, x)).saveToCassandra(ks, "tab1")
 
     //Setup options Rdd (1, -1, None) (2, -1, None) (3, -1, None)
     val optRdd = sc.parallelize(1 to 6)
       .map(x => (x, None, None))
-      .map{ case (x: Int, y: Option[Int], z: Option[Int]) =>
+      .map { case (x: Int, y: Option[Int], z: Option[Int]) =>
         (x, CassandraOption.deleteIfNone(y), CassandraOption.unsetIfNone(z))
       }.saveToCassandra(ks, "tab1")
 
@@ -79,9 +90,9 @@ class DocExamples extends SparkCassandraITFlatSpecBase {
 
   }
 
-  "Doc example #1 for spark.cassandra.output.ignorenulls" should "show using a write conf to ignore nulls" in {
+  it should "show using a write conf to ignore nulls" in {
     //Setup original data (1, 1, 1) --> (6, 6, 6)
-    sc.parallelize(1 to 6).map(x => (x,x,x)).saveToCassandra(ks, "tab1")
+    sc.parallelize(1 to 6).map(x => (x, x, x)).saveToCassandra(ks, "tab1")
 
     val ignoreNullsWriteConf = WriteConf.fromSparkConf(sc.getConf).copy(ignoreNulls = true)
     //These writes will do not delete because we are ignoring nulls

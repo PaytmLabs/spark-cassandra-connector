@@ -22,24 +22,24 @@ private[connector] class BoundStatementBuilder[T](
   private val converters = columnTypes.map(ColumnType.converterToCassandra(_))
   private val buffer = Array.ofDim[Any](columnNames.size)
 
-  require( ignoreNulls == false || protocolVersion.toInt >= ProtocolVersion.V4.toInt,
+  require(ignoreNulls == false || protocolVersion.toInt >= ProtocolVersion.V4.toInt,
     s"""
-      |Protocol Version $protocolVersion does not support ignoring null values and leaving
-      |parameters unset. This is only supported in ${ProtocolVersion.V4} and greater.
+       |Protocol Version $protocolVersion does not support ignoring null values and leaving
+       |parameters unset. This is only supported in ${ProtocolVersion.V4} and greater.
     """.stripMargin)
 
   var logUnsetToNullWarning = false
   val UnsetToNullWarning =
     s"""Unset values can only be used with C* >= 2.2. They have been replaced
-      |with nulls. Found protocol version ${protocolVersion}.
-      |${ProtocolVersion.V4} or greater required"
+        |with nulls. Found protocol version ${protocolVersion}.
+        |${ProtocolVersion.V4} or greater required"
     """.stripMargin
 
   /**
-  * If the protocol version is greater than V3 (C* 2.2 and Greater) then
-  * we can leave values in the prepared statement unset. If the version is
-  * less than V3 then we need to place a `null` in the bound statement.
-  */
+    * If the protocol version is greater than V3 (C* 2.2 and Greater) then
+    * we can leave values in the prepared statement unset. If the version is
+    * less than V3 then we need to place a `null` in the bound statement.
+    */
   private def maybeLeaveUnset(
     boundStatement: BoundStatement,
     columnName: String): Unit = protocolVersion match {
